@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { z } from "zod";
@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Upload, X } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -16,10 +17,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-// Creating a validating schema using zod
 const formSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters long"),
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phoneNumber: z
     .string()
     .min(10, "Phone number must be at least 10 digits long"),
@@ -27,8 +27,10 @@ const formSchema = z.object({
 });
 
 export default function ProfileForm() {
-  // ...
-  const [submittedData, setSubmittedData] = useState(null);
+  const [submittedData, setSubmittedData] = useState<any>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -38,70 +40,159 @@ export default function ProfileForm() {
       age: 18,
     },
   });
-  function onSubmit(data) {
-    alert("Form submitted!");
-    console.log("Form submitted:", data);
-    setSubmittedData(data);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    const input = document.getElementById("photo-upload") as HTMLInputElement;
+    if (input) input.value = "";
+  };
+
+  function onSubmit(data: any) {
+    alert("Employee record saved successfully!");
+    console.log("Form data:", data);
+    console.log("Attached photo:", photoFile?.name || "No photo");
+    setSubmittedData({
+      ...data,
+      photoName: photoFile?.name || "No photo attached",
+    });
   }
+
   if (submittedData) {
     return (
-      <div className="p-8 max-w-0xl mx-auto">
-        <h2 className="text-2xl font-bold mb-4">Submitted Data</h2>
-        <p>
-          <strong>Name: {submittedData.fullName}</strong>
-        </p>
-        <p>
-          <strong>Email: {submittedData.email}</strong>
-        </p>
-        <p>
-          <strong>Phone Number: {submittedData.phoneNumber}</strong>
-        </p>
-        <p>
-          <strong>Age:{submittedData.age}</strong>
-        </p>
-        <button className="mt-4" onClick={() => setSubmittedData(null)}>
+      <div className="p-8 max-w-2xl mx-auto bg-white rounded-xl shadow-lg">
+        <h2 className="text-2xl font-bold mb-6 text-center">Submitted Data</h2>
+        <div className="space-y-3 text-lg">
+          <p>
+            <strong>Name:</strong> {submittedData.fullName}
+          </p>
+          <p>
+            <strong>Email:</strong> {submittedData.email || "Not provided"}
+          </p>
+          <p>
+            <strong>Phone:</strong> {submittedData.phoneNumber}
+          </p>
+          <p>
+            <strong>Age:</strong> {submittedData.age}
+          </p>
+          <p>
+            <strong>Photo:</strong> {submittedData.photoName}
+          </p>
+        </div>
+        {photoPreview && (
+          <image
+            src={photoPreview}
+            alt="Employee"
+            className="mt-6 max-h-64 rounded-lg mx-auto shadow"
+          />
+        )}
+        <Button
+          onClick={() => setSubmittedData(null)}
+          className="mt-8 w-full"
+          size="lg"
+        >
           Edit
-        </button>
+        </Button>
       </div>
     );
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        {/* Full name field*/}
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="space-y-sm max-w-2xl  mx-auto p-6 bg-white rounded-xl shadow-lg"
+      >
+        {/* PHOTO UPLOAD */}
+        <div className=" space-y-1">
+          <FormLabel className="text-xl font-bold mb-10">
+            Employee Record Photo
+          </FormLabel>
+
+          {!photoPreview ? (
+            <label
+              htmlFor="photo-upload"
+              className="mb-5 flex flex-col items-center justify-center w-full h-40 border-4 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all"
+            >
+              <div className="flex flex-col items-center justify-center  pt-10 pb-2">
+                <Upload className="w-10 h-10 mb-6 text-gray-400" />
+                <p className="text-lg font-medium text-gray-700 px-2 text-center">
+                  Click to upload or drag & drop
+                </p>
+                <p className="text-sm text-gray-500 mt-2 mb-3">JPG, PNG</p>
+              </div>
+              <input
+                id="photo-upload"
+                type="file"
+                accept="image/*,.pdf"
+                className="hidden"
+                onChange={handlePhotoChange}
+              />
+            </label>
+          ) : (
+            <div className="relative">
+              <image
+                src={photoPreview}
+                alt="Employee preview"
+                className="w-full max-h-96 object-contain rounded-2xl shadow-2xl"
+              />
+              <button
+                type="button"
+                onClick={removePhoto}
+                className="absolute -top-6 -right-6 bg-red-600 text-white p-1 rounded-full hover:bg-red-700 shadow-xl"
+              >
+                <X className="w-8 h-8" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* FORM FIELDS */}
         <FormField
           control={form.control}
           name="fullName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Username</FormLabel>
+              <FormLabel>Full Name</FormLabel>
               <FormControl>
-                <Input placeholder="shadcn" {...field} />
+                <Input className="mb-3" placeholder="Abebe Kebede" {...field} />
               </FormControl>
-              <FormDescription>
-                This is your public display name.
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-        {/*email field */}
+
         <FormField
           control={form.control}
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>Email (optional)</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="abebe@gmail.com" {...field} />
+                <Input
+                  className="mb-3"
+                  type="email"
+                  placeholder="abebe@example.com"
+                  {...field}
+                />
               </FormControl>
-              <FormDescription>We'll never share your email.</FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-        {/* phone number field*/}
+
         <FormField
           control={form.control}
           name="phoneNumber"
@@ -109,13 +200,17 @@ export default function ProfileForm() {
             <FormItem>
               <FormLabel>Phone Number</FormLabel>
               <FormControl>
-                <Input type="tel" placeholder="+251 912345678" {...field} />
+                <Input
+                  className="mb-3"
+                  placeholder="+251 911 234 567"
+                  {...field}
+                />
               </FormControl>
-              <FormDescription>Your contact phone number.</FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="age"
@@ -123,15 +218,21 @@ export default function ProfileForm() {
             <FormItem>
               <FormLabel>Age</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="18" {...field} />
+                <Input
+                  className="mb-3"
+                  type="number"
+                  placeholder="32"
+                  {...field}
+                />
               </FormControl>
-              <FormDescription>Your age (must be 18+)</FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <Button type="submit">Submit</Button>
+        <Button type="submit" size="lg" className="w-full">
+          Save Employee Record
+        </Button>
       </form>
     </Form>
   );

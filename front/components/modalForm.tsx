@@ -1,4 +1,3 @@
-import { React } from "react";
 import { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +27,7 @@ export default function ModalForms({
       <DialogTrigger asChild>
         <Button>{triggerLabel}</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
