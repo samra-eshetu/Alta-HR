@@ -3,5 +3,5 @@ export interface EmployeeType {
   lastName:string,
   phoneNumber:string,
   email:string,
-  age:number,
+  age:Date,
 }

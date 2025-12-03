@@ -1,5 +1,3 @@
-// app/forms/page.tsx
-"use client";
 
 import ProfileForm from "@/components/Forms/profileForm";
 import LeaveForm from "@/components/Forms/leaveForm";

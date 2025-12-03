@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import {ChangeEvent, useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,26 +10,33 @@ import { Upload, X } from "lucide-react";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 
+import {EmployeeType} from "@/types"
+import { gql } from "@apollo/client";
+import { useMutation } from "@apollo/client/react";
+import axios from "axios";
+import { DatePicker } from "../custom/datePicker";
+
+
 const formSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters long"),
-  email: z.string().email("Invalid email address").optional().or(z.literal("")),
-  phoneNumber: z
+  email: z.email("Invalid email address").optional(),
+  phoneNumber: z.coerce
     .string()
     .min(10, "Phone number must be at least 10 digits long"),
-  age: z.coerce.number().min(18, "You must be at least 18 years old"),
+  dateOfBirth: z.date()
 });
 
 export default function ProfileForm() {
   const [submittedData, setSubmittedData] = useState<any>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [loading,setLoading] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -37,9 +44,28 @@ export default function ProfileForm() {
       fullName: "",
       email: "",
       phoneNumber: "",
-      age: 18,
+      dateOfBirth: new Date(),
     },
   });
+
+  const saveData = gql(`
+        mutation MyMutation {
+        insert_employees(objects: {first_name: $firstName, last_name: $lastName, phone: $phoneNumber, email: $email}) {
+          affected_rows
+        }
+    }
+  `)
+
+  const [myMutation] = useMutation(saveData)
+  function onSubmit (data: any) {
+    alert("Employee record saved successfully!"); // TODO: change this to toast
+    console.log("Form submitted:", data);
+    setSubmittedData({
+      ...data,
+      photoName: photoFile?.name || "No photo attached",
+    });
+    myMutation({variables:data})
+  }
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -60,14 +86,32 @@ export default function ProfileForm() {
     if (input) input.value = "";
   };
 
-  function onSubmit(data: any) {
-    alert("Employee record saved successfully!");
-    console.log("Form data:", data);
-    console.log("Attached photo:", photoFile?.name || "No photo");
-    setSubmittedData({
-      ...data,
-      photoName: photoFile?.name || "No photo attached",
-    });
+  async function processWithAI(){
+    if(!photoFile) return;
+
+    const formData  = new FormData()
+    formData.append("file", photoFile);
+    try {
+      setLoading(true)
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
+      const res = await axios.post(`${BACKEND_URL}/extractText`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      const employeeRec:EmployeeType = res.data;
+      form.reset({
+        fullName: `${employeeRec.firstName} ${employeeRec.lastName}`,
+        email: employeeRec.email,
+        phoneNumber: employeeRec.phoneNumber,
+        dateOfBirth: employeeRec.age,
+      });
+
+    } catch (err) {
+      console.error(err);
+    }finally{
+      setLoading(false)
+    }
   }
 
   if (submittedData) {
@@ -131,7 +175,7 @@ export default function ProfileForm() {
                 <p className="text-lg font-medium text-gray-700 px-2 text-center">
                   Click to upload or drag & drop
                 </p>
-                <p className="text-sm text-gray-500 mt-2 mb-3">JPG, PNG</p>
+                <p className="text-sm text-gray-500 mt-2 mb-3">JPG, PNG, PDF</p>
               </div>
               <input
                 id="photo-upload"
@@ -143,17 +187,20 @@ export default function ProfileForm() {
             </label>
           ) : (
             <div className="relative">
-              <image
-                src={photoPreview}
-                alt="Employee preview"
-                className="w-full max-h-96 object-contain rounded-2xl shadow-2xl"
-              />
+              {
+                photoPreview && (
+                  <img
+                    src={photoPreview}
+                    alt="Employee preview"
+                    className="w-full max-h-40 object-contain rounded-2xl shadow-2xl"
+                  />
+                )
+              }
               <button
-                type="button"
                 onClick={removePhoto}
                 className="absolute -top-6 -right-6 bg-red-600 text-white p-1 rounded-full hover:bg-red-700 shadow-xl"
               >
-                <X className="w-8 h-8" />
+                <X className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -164,7 +211,7 @@ export default function ProfileForm() {
           control={form.control}
           name="fullName"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="mt-10">
               <FormLabel>Full Name</FormLabel>
               <FormControl>
                 <Input className="mb-3" placeholder="Abebe Kebede" {...field} />
@@ -213,26 +260,31 @@ export default function ProfileForm() {
 
         <FormField
           control={form.control}
-          name="age"
+          name="dateOfBirth"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Age</FormLabel>
+              <FormLabel>Date of birth</FormLabel>
               <FormControl>
-                <Input
-                  className="mb-3"
-                  type="number"
-                  placeholder="32"
-                  {...field}
-                />
+                <DatePicker  value={field.value} onChange={field.onChange}/>
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <Button type="submit" size="lg" className="w-full">
-          Save Employee Record
-        </Button>
+        <div className="flex w-full gap-3 items-center mt-3">
+            <Button type="submit" size="lg" className="flex-1 cursor-pointer">
+              Save Employee Record
+            </Button>
+
+          {
+            photoFile?(
+              <Button className="cursor-pointer" variant="secondary" onClick={()=>{processWithAI()}}>
+                  extract Text
+              </Button>
+            ):null
+          }
+        </div>
       </form>
     </Form>
   );

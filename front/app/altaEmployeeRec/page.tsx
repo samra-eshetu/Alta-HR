@@ -54,7 +54,6 @@ export default function ProfileForm() {
     alert("Form submitted!");
     console.log("Form submitted:", data);
     myMutation({variables:data})
-    // setSubmittedData(data);
   }
   function selectImage(e: ChangeEvent<HTMLInputElement>){
       const file = e.target.files?.[0];

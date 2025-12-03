@@ -1,6 +1,4 @@
 "use client";
-
-import * as React from "react";
 import Link from "next/link";
 import { Upload, Users, FileText, Calendar, Settings } from "lucide-react";
 import {
@@ -11,7 +9,6 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -23,21 +20,21 @@ import {
 const forms = [
   {
     title: "Employee Profile Form",
-    href: "/forms/profile",
+    href: "/Form?formType=employee",
     description:
       "Digitize paper records or add new employee profiles with photo upload.",
     icon: Users,
   },
   {
     title: "Leave Request Form",
-    href: "/forms/leave",
+    href: "/Form?formType=leave",
     description:
       "Submit and track annual leave, sick leave, or emergency requests.",
     icon: Calendar,
   },
   {
     title: "Complaint Form",
-    href: "/forms/complaint",
+    href: "/Form?formType=compliant",
     description: "Report workplace issues confidentially.",
     icon: FileText,
   },
@@ -92,18 +89,17 @@ export default function Homepage() {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <Link href="/settings" legacyBehavior passHref>
-                  <NavigationMenuLink className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Settings
+                 <NavigationMenuLink className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground" asChild>
+                     <Link href="/settings">
+                        <Settings className="w-4 h-4 mr-2" />
+                        Settings
+                    </Link>
                   </NavigationMenuLink>
-                </Link>
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
         </div>
       </header>
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center">
@@ -117,11 +113,11 @@ export default function Homepage() {
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
-            {forms.map((form) => {
+            {forms.map((form,index) => {
               const Icon = form.icon;
               return (
                 <Card
-                  key={form.href}
+                  key={index}
                   className="hover:shadow-xl transition-shadow cursor-pointer border-2 hover:border-blue-500"
                 >
                   <Link href={form.href} className="block p-6">
@@ -143,7 +139,6 @@ export default function Homepage() {
           </div>
         </div>
       </main>
-
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-8 mt-24">
         <div className="max-w-7xl mx-auto px-4 text-center">
