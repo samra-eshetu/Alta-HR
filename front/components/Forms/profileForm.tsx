@@ -21,6 +21,7 @@ import { gql } from "@apollo/client";
 import { useMutation } from "@apollo/client/react";
 import axios from "axios";
 import { DatePicker } from "../custom/datePicker";
+import Image from 'next/image'
 
 
 const formSchema = z.object({
@@ -136,9 +137,11 @@ export default function ProfileForm() {
           </p>
         </div>
         {photoPreview && (
-          <image
+          <Image
             src={photoPreview}
             alt="Employee"
+            width={16 * 20}
+            height={9 * 20}
             className="mt-6 max-h-64 rounded-lg mx-auto shadow"
           />
         )}
@@ -160,7 +163,7 @@ export default function ProfileForm() {
         className="space-y-sm max-w-2xl  mx-auto p-6 bg-white rounded-xl shadow-lg"
       >
         {/* PHOTO UPLOAD */}
-        <div className=" space-y-1">
+        <div className=" space-y-1  flex items-center justify-center flex-col">
           <FormLabel className="text-xl font-bold mb-10">
             Employee Record Photo
           </FormLabel>
@@ -186,7 +189,7 @@ export default function ProfileForm() {
               />
             </label>
           ) : (
-            <div className="relative">
+            <div className="relative w-fit">
               {
                 photoPreview && (
                   <img
