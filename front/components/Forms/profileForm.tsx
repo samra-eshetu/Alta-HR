@@ -1,6 +1,6 @@
 "use client";
 
-import {ChangeEvent, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,23 +21,25 @@ import { gql } from "@apollo/client";
 import { useMutation } from "@apollo/client/react";
 import axios from "axios";
 import { DatePicker } from "../custom/datePicker";
-import Image from 'next/image'
+import { parse } from "date-fns";
 
+const phoneRegex =
+  /^(?:\+251|251|0)(7\d{8}|9\d{8})$/;
 
 const formSchema = z.object({
-  fullName: z.string().min(2, "Full name must be at least 2 characters long"),
-  email: z.email("Invalid email address").optional(),
-  phoneNumber: z.coerce
+  fullName: z.string().min(2),
+  email: z.email().optional(),
+  phoneNumber: z
     .string()
-    .min(10, "Phone number must be at least 10 digits long"),
-  dateOfBirth: z.date()
+    .regex(phoneRegex, "Invalid Ethiopian phone number"),
+  dateOfBirth: z.date(),
 });
 
 export default function ProfileForm() {
-  const [submittedData, setSubmittedData] = useState<any>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [loading,setLoading] = useState(false);
+  const [extractLoading, setExtractLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -58,14 +60,13 @@ export default function ProfileForm() {
   `)
 
   const [myMutation] = useMutation(saveData)
-  function onSubmit (data: any) {
+  async function onSubmit (data: any) {
+    setFormLoading(true)
     alert("Employee record saved successfully!"); // TODO: change this to toast
     console.log("Form submitted:", data);
-    setSubmittedData({
-      ...data,
-      photoName: photoFile?.name || "No photo attached",
-    });
-    myMutation({variables:data})
+    await myMutation({variables:data})
+
+    setFormLoading(false)
   }
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,7 +94,7 @@ export default function ProfileForm() {
     const formData  = new FormData()
     formData.append("file", photoFile);
     try {
-      setLoading(true)
+      setExtractLoading(true)
       const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
       const res = await axios.post(`${BACKEND_URL}/extractText`, formData, {
         headers: {
@@ -101,61 +102,29 @@ export default function ProfileForm() {
         },
       });
       const employeeRec:EmployeeType = res.data;
+      console.log("response object from Extracting text \n",res.data);
+
+      let dateOfBirth
+      try {
+        dateOfBirth = parse(employeeRec.dateOfBirth,"dd/MM/yyyy",new Date()) 
+      } catch(e){
+        console.error(e)
+        dateOfBirth = new Date()
+      }
+
       form.reset({
         fullName: `${employeeRec.firstName} ${employeeRec.lastName}`,
         email: employeeRec.email,
         phoneNumber: employeeRec.phoneNumber,
-        dateOfBirth: employeeRec.age,
+        dateOfBirth,
       });
 
     } catch (err) {
       console.error(err);
     }finally{
-      setLoading(false)
+      setExtractLoading(false)
     }
   }
-
-  if (submittedData) {
-    return (
-      <div className="p-8 max-w-2xl mx-auto bg-white rounded-xl shadow-lg">
-        <h2 className="text-2xl font-bold mb-6 text-center">Submitted Data</h2>
-        <div className="space-y-3 text-lg">
-          <p>
-            <strong>Name:</strong> {submittedData.fullName}
-          </p>
-          <p>
-            <strong>Email:</strong> {submittedData.email || "Not provided"}
-          </p>
-          <p>
-            <strong>Phone:</strong> {submittedData.phoneNumber}
-          </p>
-          <p>
-            <strong>Age:</strong> {submittedData.age}
-          </p>
-          <p>
-            <strong>Photo:</strong> {submittedData.photoName}
-          </p>
-        </div>
-        {photoPreview && (
-          <Image
-            src={photoPreview}
-            alt="Employee"
-            width={16 * 20}
-            height={9 * 20}
-            className="mt-6 max-h-64 rounded-lg mx-auto shadow"
-          />
-        )}
-        <Button
-          onClick={() => setSubmittedData(null)}
-          className="mt-8 w-full"
-          size="lg"
-        >
-          Edit
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <Form {...form}>
       <form
@@ -164,10 +133,6 @@ export default function ProfileForm() {
       >
         {/* PHOTO UPLOAD */}
         <div className=" space-y-1  flex items-center justify-center flex-col">
-          <FormLabel className="text-xl font-bold mb-10">
-            Employee Record Photo
-          </FormLabel>
-
           {!photoPreview ? (
             <label
               htmlFor="photo-upload"
@@ -176,7 +141,7 @@ export default function ProfileForm() {
               <div className="flex flex-col items-center justify-center  pt-10 pb-2">
                 <Upload className="w-10 h-10 mb-6 text-gray-400" />
                 <p className="text-lg font-medium text-gray-700 px-2 text-center">
-                  Click to upload or drag & drop
+                  Click to upload old Employee record
                 </p>
                 <p className="text-sm text-gray-500 mt-2 mb-3">JPG, PNG, PDF</p>
               </div>
@@ -214,10 +179,10 @@ export default function ProfileForm() {
           control={form.control}
           name="fullName"
           render={({ field }) => (
-            <FormItem className="mt-10">
+            <FormItem className="mt-10 mb-5">
               <FormLabel>Full Name</FormLabel>
               <FormControl>
-                <Input className="mb-3" placeholder="Abebe Kebede" {...field} />
+                <Input placeholder="Abebe Kebede" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -228,11 +193,10 @@ export default function ProfileForm() {
           control={form.control}
           name="email"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="mb-5" >
               <FormLabel>Email (optional)</FormLabel>
               <FormControl>
                 <Input
-                  className="mb-3"
                   type="email"
                   placeholder="abebe@example.com"
                   {...field}
@@ -247,11 +211,10 @@ export default function ProfileForm() {
           control={form.control}
           name="phoneNumber"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="mb-5" >
               <FormLabel>Phone Number</FormLabel>
               <FormControl>
                 <Input
-                  className="mb-3"
                   placeholder="+251 911 234 567"
                   {...field}
                 />
@@ -268,7 +231,7 @@ export default function ProfileForm() {
             <FormItem>
               <FormLabel>Date of birth</FormLabel>
               <FormControl>
-                <DatePicker  value={field.value} onChange={field.onChange}/>
+                <DatePicker  value={field.value ?? null} onChange={field.onChange}/>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -276,14 +239,32 @@ export default function ProfileForm() {
         />
 
         <div className="flex w-full gap-3 items-center mt-3">
-            <Button type="submit" size="lg" className="flex-1 cursor-pointer">
-              Save Employee Record
+            <Button type="submit" size="lg" className={`flex-1 ${formLoading ? "bg-gray-300 hover:bg-gray-300 cursor-not-allowed disabled":"cursor-pointer"}`}>
+            {
+                !formLoading ? "Save Employee Record" : (
+                    <div className="flex gap-1 items-center">
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-[bounce_0.4s_0.2s_infinite]"></span>
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-[bounce_0.4s_0.4s_infinite]"></span>
+                    </div>
+                  )
+
+            }
             </Button>
 
           {
             photoFile?(
-              <Button className="cursor-pointer" variant="secondary" onClick={()=>{processWithAI()}}>
-                  extract Text
+              <Button className={`flex-1 ${extractLoading ? "bg-gray-300 hover:bg-gray-300 cursor-not-allowed disabled":"cursor-pointer"}`} variant="secondary" onClick={()=>{processWithAI()}}>
+                {
+                  !extractLoading ? "extract Text" : (
+
+                    <div className="flex gap-1 items-center">
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-[bounce_0.4s_0.2s_infinite]"></span>
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-[bounce_0.4s_0.4s_infinite]"></span>
+                    </div>
+                  )
+                }
               </Button>
             ):null
           }
