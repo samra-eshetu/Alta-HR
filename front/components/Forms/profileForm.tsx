@@ -96,11 +96,7 @@ export default function ProfileForm() {
     try {
       setExtractLoading(true)
       const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
-      const res = await axios.post(`${BACKEND_URL}/extractText`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const res = await axios.post(`${BACKEND_URL}/extractText`, formData );
       const employeeRec:EmployeeType = res.data;
       console.log("response object from Extracting text \n",res.data);
 

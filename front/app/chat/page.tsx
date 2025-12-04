@@ -86,6 +86,7 @@ export default function Chat() {
 
       // Try upsert
       const resp = await upsertConv({ variables });
+      console.log(resp,"resp from upsert")
       const upsertData = resp.data?.insert_conversations_one ;
 
       if (upsertData?.id) {
@@ -126,7 +127,7 @@ export default function Chat() {
     if(isInputEmpty()) return
      setLoading(true)
     const BACKENDURL =   process.env.NEXT_PUBLIC_BACKEND_URL
-    const res = await axios.post(`${BACKENDURL}chat`, {message:input,conversationId}, {})
+    const res = await axios.post(`${BACKENDURL}/chat`, {message:input,conversationId}, {})
 
     const aiResp: ChatType= {
       type:"bot",
