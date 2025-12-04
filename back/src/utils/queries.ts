@@ -35,8 +35,9 @@ export const GET_ALL_EMPLOYEE  = gql`
     }
   }
 `
-export const SEARCH_ALL_EMPLOYEE  = gql`
-  query getEmployee($where: any) {
+
+export const SEARCH_ALL_EMPLOYEE = gql`
+  query getEmployee($where: employees_bool_exp!) {
     employees(where: $where) {
       first_name
       last_name
@@ -52,7 +53,7 @@ export const SEARCH_ALL_EMPLOYEE  = gql`
       updated_at
     }
   }
-`
+`;
 
 export const GET_CONVERSATION = gql`
     query GetConversation($employee_id: Int!, $title: String!) {

@@ -5,16 +5,17 @@ import { GET_ALL_EMPLOYEE, GET_INDIVIDUAL_EMPLOYEE, SEARCH_ALL_EMPLOYEE } from "
 
 export const listEmployeesTool = (hasuraService:HasuraService) => tool(
   async ({ offset, limit,order_by }) => {
+    console.log("list employees",{offset,limit, order_by})
     const res = await  hasuraService.query(GET_ALL_EMPLOYEE,{offset,limit,order_by})
-    console.log("list employees",{res,offset,limit, order_by})
+    console.log(res)
     return JSON.stringify(res.employees)
   },
   {
     name: "listEmployees",
-    description: "Return a list of all employees",
+    description: "Return a list of all employees, if limit is not provided default to 5",
     schema: z.object({
       offset: z.number().optional().describe("Offset you want to index"),
-      limit: z.number().describe("Maximum number of results to return"),
+      limit: z.number().optional().describe("Maximum number of results to return"),
       order_by: z.array(z.any()).optional().describe("Hasura order_by array, e.g., [{dateOfBirth: asc}]"),
     }),
   }
@@ -27,8 +28,9 @@ export const getEmployeeInfoTool = (hasuraService:HasuraService) => tool(
       last_name: last_name ? `%${last_name}%` : "", 
       email: email??""
     }
+    console.log("get employee ",{first_name,last_name,email})
     const res = await hasuraService.query(GET_INDIVIDUAL_EMPLOYEE,variables)
-    console.log("get employee ",{res, first_name,last_name,email})
+    console.log(res)
     // if(res.employees) return res.employees[0]
     return JSON.stringify(res.employees)
   },
@@ -43,18 +45,24 @@ export const getEmployeeInfoTool = (hasuraService:HasuraService) => tool(
   }
 );
 export const searchEmployeeTool = (hasuraService:HasuraService) => tool(
-  async (where)=>{
+  async ({where})=>{
+    console.log(where)
     const res = await hasuraService.query(SEARCH_ALL_EMPLOYEE,{where})
-
-    console.log("search employee ",{res,where})
+    console.log(res)
     // if(res.employees) return res.employees
     return JSON.stringify(res.employees)
   },
   {
     name: "searchEmployee",
-    description: "Search Employees in hasura database",
+    description: `
+      Search employees in Hasura. DO NOT add a nested 'where'.
+      Always provide a Hasura boolean expression object.
+      - Example: { gender: { _eq: 'female' } }
+      - Combine conditions with _and / _or
+      - Valid operators: _eq, _ilike, _lt, _gt, _and, _or
+    `,
     schema: z.object({
-      where: z.any().describe("Hasura 'where' filter object to select employees"),
+      where: z.any().describe("Valid Hasura boolean expression to filter employees")
     }),
   }
 
