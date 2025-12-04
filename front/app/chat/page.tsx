@@ -15,6 +15,7 @@ import { useMutation, useQuery } from "@apollo/client/react";
 import client from "@/lib/hasura-client";
 import { Spinner } from "@/components/ui/spinner";
 import "./index.css"
+import { Textarea } from "@/components/ui/textarea";
 
 const UpsertConverstion = gql`
   mutation UpsertConversation($employee_id: Int!, $title: String!) {
@@ -144,9 +145,10 @@ export default function Chat() {
     setLoading(false)
   }
   const onInputKeyDown = (e:any)=>{
-    if(e.key=="Enter" && !loading){
-      sendMessage()
-    }
+      if (e.key === "Enter" && !e.shiftKey && !loading) {
+          e.preventDefault(); // prevent newline
+          sendMessage();
+      }
   }
 
   return (
@@ -182,7 +184,7 @@ export default function Chat() {
             <div ref={bottomDiv}></div>
             </div>
             <div className="absolute bottom-2 flex gap-5 items-center w-full">
-              <Input type="text" value={input}  onChange={e=>setInput(e.target.value)} placeholder="Ask anything" className=" text-white border-[#313032]  py-4 px-10 bg-[#313032] rounded-2xl w-full"  onKeyDown={onInputKeyDown}/>
+              <Textarea value={input}  onChange={e=>setInput(e.target.value)} placeholder="Ask anything" className="py-0 px-10 rounded-2xl w-full flex items-center"  onKeyDown={onInputKeyDown}/>
               <Button className={`outline rounded-2xl ${isInputEmpty()? "disabled cursor-not-allowed bg-[#31303250] hover:bg-[#313032] ":"cursor-pointer  text-white " }`} onClick={()=>sendMessage()}>
               Submit
               {
