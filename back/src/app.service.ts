@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable,MessageEvent,Logger } from '@nestjs/common';
 
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { createAgent, initChatModel, ReactAgent } from "langchain";
@@ -7,10 +7,12 @@ import { HistoryService } from './utils/history.service';
 import { getEmployeeInfoTool, listEmployeesTool, searchEmployeeTool } from './utils/toolCalls';
 import { HasuraService } from './utils/hasura.service';
 import { ChatBotSytemPrompt } from './utils/systemPrompts';
+import { Observable } from 'rxjs';
 
 @Injectable()
 export class AppService {
-  chatAgent:ReactAgent
+  private chatAgent:ReactAgent
+  private readonly logger = new Logger(AppService.name);
   constructor(private readonly historyService: HistoryService,private readonly hasuraService: HasuraService){
 
   }
@@ -67,30 +69,83 @@ export class AppService {
       )
       return res.structuredResponse
   }
-  async chatService(conversationId: string, message: string) {
-    try {
-      console.log({conversationId,message})
-      const previousMessages = await this.historyService.getChatsInConversation(conversationId);
-      const historical = previousMessages.map(msg => ({
-          role: msg.sender_type === "user" ? "user" : "assistant",
-          content: msg.content,
-      }));
+  chatService(conversationId: string, message: string) {
+    return new Observable<MessageEvent>((subscriber) => {
+      (async () => {
+        try {
+          const previousMessages = await this.historyService.getChatsInConversation(conversationId);
 
-      const MAX_CONTEXT  = 6;
+          const historical = previousMessages.map(msg => ({
+            role: msg.sender_type === "user" ? "user" : "assistant",
+            content: msg.content,
+          }));
 
-      const combinedHistory = [
-        ...historical.slice(-MAX_CONTEXT),
-        { role: "user", content: message },
-      ];
+          const MAX_CONTEXT = 6;
 
-      const resp = await this.chatAgent.invoke({
-        messages: combinedHistory,
-      });
+          const combinedHistory = [
+            // ...historical.slice(-MAX_CONTEXT),
+            { role: "user", content: message },
+          ];
 
-      return resp.messages.at(-1)?.content;
-    } catch (err) {
-      console.error("chatService error", err);
-      return "Something went wrong.";
-    }
+          const stream = await this.chatAgent.stream({
+            messages: combinedHistory,
+          },{streamMode:["custom","updates","messages"]});
+          let line =""
+
+          for await (const chunk of stream) {
+            if(chunk[0] === "custom"){
+              this.logger.verbose(`custom: ${JSON.stringify(chunk[1])}`);
+              subscriber.next({ data: {type:"progress",payload: chunk[1]} });
+            }
+            else if( chunk[0] === "updates"){
+              const chunkResp =chunk[1]
+              if(chunkResp.model_request){
+                const content = chunkResp.model_request.messages[0].content;
+                if(typeof content == "string"){
+                   // this.logger.debug(`Update content: ${content}`);
+                   subscriber.next({data:{type:"update",payload:content}})
+                }
+              }
+            }
+            else if(chunk[0] == "messages"){
+              const chunkResp = chunk[1]
+              const content = chunkResp[0].content
+              try{
+                if(typeof content == "string"){
+                   JSON.parse(content)
+                }
+              }catch(e){
+                if (typeof content === "string") {
+                    line += content; // append chunk to buffer
+
+                    let newlineIndex;
+                    while ((newlineIndex = line.indexOf("\n")) !== -1) {
+
+                      // extract line up to newline
+                      const completeLine = line.slice(0, newlineIndex);
+
+                      subscriber.next({ data: { type: "token", payload: completeLine +"\n" } });
+
+                      this.logger.debug(`line: ${completeLine}`);
+
+                      // remove processed line + newline
+                      line = line.slice(newlineIndex + 1);
+                    }
+                }
+              }
+
+            }
+          }
+          if (line.length > 0) {
+            subscriber.next({ data: { type: "token", payload: line } });
+            line = "";
+          }
+          subscriber.complete();
+        } catch (err) {
+          this.logger.error("Error",err)
+          subscriber.error(err);
+        }
+      })();
+   });
   }
 }

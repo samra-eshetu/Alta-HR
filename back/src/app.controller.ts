@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Post, Sse,MessageEvent, UploadedFile, UseInterceptors, Query } from '@nestjs/common';
 import { AppService } from './app.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PipeTransform, Injectable } from '@nestjs/common';
+import { Observable } from 'rxjs';
 
 @Injectable()
 export class FileSizeValidationPipe implements PipeTransform {
@@ -44,17 +45,12 @@ export class AppController {
     return extracted; // returns structuredResponse
   }
 
-   @Post('chat')
-   async chat(@Body() body: { message: string; conversationId: string }) {
-    const { message, conversationId } = body;
-    console.log(message)
-
-    if (!message) {
-      return "No message provided";
-    }
-
-    const response = await this.appService.chatService(conversationId, message);
-    console.log(response)
-    return response; // returns a plain string
+   @Sse('chat')
+   chat(
+    @Query('message') message: string,
+    @Query('conversationId') conversationId: string
+  ):Observable<MessageEvent> {
+    const response =  this.appService.chatService(conversationId, message);
+    return response; 
   }
 }
