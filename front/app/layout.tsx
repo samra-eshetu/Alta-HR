@@ -24,14 +24,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <body className="min-h-screen bg-linear-to-br from-blue-50 via-white to-indigo-50">
         {/*Header*/}
         <header className="border-b bg-white/80 backdrop-blur">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="bg-blue-600 rounded-lg">
                 <Image
-                  src="/alta-logo.jpg"
+                  src="/alta logo.jpg"
                   alt="Alta Logo"
                   width={32}
                   height={32}
@@ -64,30 +64,26 @@ export default function RootLayout({
 
                 <NavigationMenuItem>
                   <NavigationMenuTrigger className="text-lg font-medium [&>svg]:hidden">
-                    Chat
-                  </NavigationMenuTrigger>
-                </NavigationMenuItem>
-
-                <NavigationMenuItem>
-                  <NavigationMenuLink asChild>
                     <Link
                       href="/chat"
                       className="flex items-center px-4 py-2 text-lg font-medium hover:bg-accent rounded-md"
-                    ></Link>
-                  </NavigationMenuLink>
+                    >Chat</Link>
+                  </NavigationMenuTrigger>
                 </NavigationMenuItem>
+
               </NavigationMenuList>
             </NavigationMenu>
           </div>
         </header>
         {/*Page Content*/}
-        <Providers>{children}</Providers>;{/*Footer */}
-        <footer className="bg-gray-900 text-white py-8 mt-24">
+        {/*Footer */}
+        <Providers>{children}</Providers>
+        <footer className="bg-gray-900 text-white py-2">
           <div className="max-w-7xl mx-auto px-4 text-center">
             <p>© 2025 Alta Computec</p>
           </div>
         </footer>
       </body>
     </html>
-  );
+  )
 }

@@ -10,55 +10,13 @@ import rehypeHighlight from "rehype-highlight";
 import rehypeSanitize from 'rehype-sanitize'
 import remarkBreaks from 'remark-breaks'
 import 'highlight.js/styles/far.css'; // or any other style
-import { gql } from "@apollo/client";
 import { useMutation, useQuery } from "@apollo/client/react";
 import client from "@/lib/hasura-client";
 import { Spinner } from "@/components/ui/spinner";
 import "./index.css"
 import { Textarea } from "@/components/ui/textarea";
+import { GET_CHATS_IN_CONVERSATIONS, GET_CONVERSATION, InsertChatMessage, UpsertConverstion } from "@/lib/queries";
 
-const UpsertConverstion = gql`
-  mutation UpsertConversation($employee_id: Int!, $title: String!) {
-    insert_conversations_one(
-      object: { employee_id: $employee_id, title: $title }
-      on_conflict: { constraint:conversations_employee_id_title_key, update_columns: [] }
-    ) {
-      id
-    }
-  }
-  `
-const InsertChatMessage = gql`
-  mutation InsertChatMessage($conversation_id: uuid!, $type: String!, $content: String!) {
-    insert_chat_messages_one(
-      object: {
-        conversation_id: $conversation_id,
-        sender_type: $type,
-        content: $content
-      }
-    ) {
-      id
-    }
-  }
-  `
-  const GET_CONVERSATION = gql`
-    query GetConversation($employee_id: Int!, $title: String!) {
-      conversations(where: { employee_id: { _eq: $employee_id }, title: { _eq: $title } }) {
-        id
-      }
-    }
-  `;
-
-  const GET_CHATS_IN_CONVERSATIONS = gql`
-    query GetChats($conversation_id: uuid!) {
-      conversations(where: { id: { _eq: $conversation_id } }) {
-        id
-        chat_messages {
-          content
-          sender_type
-        }
-      }
-    }
-  `;
 export default function Chat() {
   interface ChatType  {
     type:"user" | "bot";
@@ -153,8 +111,8 @@ export default function Chat() {
 
   return (
     <>
-      <div className="flex items-center  h-full  flex-col gap-5">
-        <div className='flex flex-col w-[80%]  max-w-[750px] h-full relative'>
+      <div className="flex items-center  h-full  flex-col gap-5 bg-linear-to-br from-blue-50 via-white to-indigo-50 ">
+        <div className='flex flex-col w-[80%]  max-w-[900px] h-full relative'>
             <div className="overflow-y-auto h-[80%] flex flex-col gap-5 mt-5">
             {
               chat.length > 0 ?(
@@ -196,7 +154,6 @@ export default function Chat() {
             </div>
           </div>
       </div>
-  )
     </>
   )
 }
