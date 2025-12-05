@@ -19,7 +19,7 @@ import { GET_CHATS_IN_CONVERSATIONS, GET_CONVERSATION, InsertChatMessage, Upsert
 
 export default function Chat() {
   interface ChatType  {
-    type:"user" | "bot";
+    type:"user" | "bot" | "progress";
     content:string
   }
   const [chat, setChat] = useState<ChatType[]>([
@@ -85,22 +85,87 @@ export default function Chat() {
   async function sendMessage (){
     if(isInputEmpty()) return
      setLoading(true)
-    const BACKENDURL =   process.env.NEXT_PUBLIC_BACKEND_URL
-    const res = await axios.post(`${BACKENDURL}/chat`, {message:input,conversationId}, {})
+     setInput("")
 
-    const aiResp: ChatType= {
-      type:"bot",
-      content: res.data
-    }
+    const BACKENDURL =   process.env.NEXT_PUBLIC_BACKEND_URL
+    const es = new EventSource(`${BACKENDURL}/chat?conversationId=${conversationId}&message=${input}`);
     const newChat: ChatType= {
       type:"user",
       content:input
     }
-    setChat(prev=>[...prev,newChat,aiResp])
+    const aiProcess: ChatType= {
+      type:"progress",
+      content: ""
+    }
+    const aiResp: ChatType= {
+      type:"bot",
+      content: ""
+    }
+
+    setChat(prev=>[...prev,newChat,aiProcess,aiResp])
     await insertChat({variables:{conversation_id:conversationId,type:"user",content:input}})
-    await insertChat({variables:{conversation_id:conversationId,type:"bot",content:res.data}})
-    setInput("")
-    setLoading(false)
+    let fullMessage = ""
+    es.onmessage = async (e) => {
+      const chunk = JSON.parse(e.data) as {type:string,payload:any};
+
+      if(chunk.type == "update"){ // Ai text
+
+        const payload = chunk.payload as string
+        // console.log("ai",payload)
+
+      } else if(chunk.type == "progress"){ // log
+
+        const payload = chunk.payload as string
+        console.log("progress",payload)
+        setChat(prev => {
+          if(prev.length === 0) return prev; // safety check
+             const botIndex = prev.length - 1;
+             const progressIndex = botIndex - 1;
+             const updatedMessage = {
+                ...prev[progressIndex],
+                content: payload
+              };
+          return [...prev.slice(0, progressIndex),updatedMessage,prev[botIndex]];
+        });
+
+      } else if(chunk.type == "token"){
+
+          const token = chunk.payload;
+          if(!token) return
+          // console.log("token",token)
+          fullMessage += token;
+
+          setChat(prev => {
+            const botIndex = prev.length - 1;
+            const updatedMessage = {
+              ...prev[botIndex],
+              content: fullMessage
+            };
+            const newPrev = [...prev];
+            newPrev[botIndex] = updatedMessage;
+            return newPrev;
+          });
+      };
+    }
+
+    es.onerror = async (e) =>{ // when closed
+      // console.log("done",fullMessage)
+      setLoading(false)
+      es.close();
+
+      const finalResp: ChatType= {
+        type:"bot",
+        content: fullMessage
+      }
+      // remove the prev tokens and show the full
+      setChat(prev => {
+        const lastIndex = prev.length - 1;
+        const updatedArray = [...prev.slice(0, lastIndex), finalResp];
+        return updatedArray;
+      });
+      await insertChat({variables:{conversation_id:conversationId,type:"bot",content:fullMessage}})
+    } 
+
   }
   const onInputKeyDown = (e:any)=>{
       if (e.key === "Enter" && !e.shiftKey && !loading) {
@@ -123,13 +188,17 @@ export default function Chat() {
                         <div className="prose prose-slate">
                           <Markdown
                             remarkPlugins={[remarkGfm,remarkBreaks]}
-                            rehypePlugins={[rehypeRaw,rehypeHighlight,rehypeSanitize]}
+                            rehypePlugins={[rehypeRaw,rehypeHighlight]}
                           >
                             {item.content}
                           </Markdown>
                         </div>
                       ):(
-                        <div className="items-end py-2 px-4 bg-[#313032] rounded-2xl text-white ">{item.content}</div>
+                          item.type == "progress" ? (
+                              <div className="text-indigo-400">{item.content}</div>
+                          ):(
+                            <div className="items-end py-2 px-4 bg-[#313032] rounded-2xl text-white ">{item.content}</div>
+                          )
                       )
                     }
 
